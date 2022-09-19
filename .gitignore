@@ -1,0 +1,13 @@
+*.gpx
+salida*.txt
+*cache*
+MontevideoConParadas.osm
+MontevideoPartido.osm
+MontevideoReducido.osm
+lineas_procesadas.lua
+lineasrutas/logs/
+paradas_doble.xml
+paradas_malas.xml
+paradas_noref.xml
+way_ids_por_varian.lua
+ways_a_partir.lua

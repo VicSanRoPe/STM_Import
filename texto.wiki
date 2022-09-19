@@ -1,0 +1,170 @@
+==Esquema plan de importación==
+
+
+==Objetivos==
+
+Importar las líneas del Sistema de Transporte Metropolitano que son provistas como datos abiertos.
+
+==Calendario== 
+
+Hay que recibir comentarios.
+
+==Importar datos==
+
+=== Fuentes ===
+
+==== Paradas de ómnibus y líneas geográficas de ómnibuses ====
+* ''' Sitio de origen de datos:''' https://geoweb.montevideo.gub.uy/geonetwork/srv/spa/catalog.search#/metadata/c6ea0476-9804-424a-9fae-2ac8ce2eee31, https://geoweb.montevideo.gub.uy/geonetwork/srv/spa/catalog.search#/metadata/307ffef2-7ba3-4935-815b-caa7057226ce<br>
+* ''' Licencia de datos:''' [http://www.montevideo.gub.uy/asl/sistemas/Gestar/resoluci.nsf/WEB/Intendente/640-10 De uso libre según resolución 640/10 del Intendente Municipal de Montevideo de fecha 22/02/2010]
+* ''' Tipo de licencia:''' Dominio público.
+* ''' ODbL Cumplimiento verificado:''' Sí, la [[Montevideo GIS|importación de calles]] tuvo la misma licencia.
+
+==== Horarios de ómnibus (más actualizado y como verificación) ====
+* ''' Sitio de origen de datos:''' https://catalogodatos.gub.uy/dataset/intendencia-montevideo-horarios-omnibus-urbanos-por-parada-stm<br>
+* ''' Licencia de datos:''' [https://www.gub.uy/agencia-gobierno-electronico-sociedad-informacion-conocimiento/sites/agencia-gobierno-electronico-sociedad-informacion-conocimiento/files/documentos/publicaciones/licencia_de_datos_abiertos_0.pdf Licencia de DAG de Uruguay]
+* ''' Tipo de licencia:''' Libre, solo requiere atribución.
+* ''' Vincular a la autorización:''' Ya se obtuvo una [[:File:AGESIC confirmation notice.png|autorización explícita]] para la [[En:Uruguay/Address Import|importación de direcciones]] (misma licencia) (la atribución siguiente enlaza [https://catalogodatos.gub.uy/dataset/direcciones-geograficas-del-uruguay aquí] (enlace roto...) ahora está [https://catalogodatos.gub.uy/dataset/ide-direcciones-geograficas-del-uruguay aquí])
+* ''' Atribución OSM:''' [[Contributors#Uruguay]]
+* ''' ODbL Cumplimiento verificado:''' Sí
+
+
+Adicionalmente, se usa una [https://github.com/maxm/osmuy/blob/master/osmuy/Main.cs tabla] hecha por [[User:MaxMz|MaxMz]] para la importación de calles; como base para arreglar nombres.
+
+
+===Tipo de importación===
+
+Es una importación de una sola vez (actualiza paradas y agrega las líneas).
+
+Los datos se procesan y combinan con el mapa mediante scripts. Tanto los datos como los scripts tienen/hacen correcciones sobre los datos originales.
+
+Planeo subir el mapa generado a OSM mediante JOSM (siguiendo [[Import/Guidelines]] y [[Automated_Edits_code_of_conduct]]).
+
+
+
+==Preparación de datos==
+
+===Reducción y simplificación de datos===
+
+==== Paradas ====
+
+No hay mucha simplificación que hacer ya que cada parada es un nodo real.
+
+Lo que se hace es buscar las paradas que ya están mediante la referecia de la importación anterior ({{Tag|source:pkey}}) o las que fueron actualizadas ({{Tag|ref}}) y se aplican las modificaciones sobre esos nodos.
+
+==== Líneas ====
+
+Se evitan las líneas ya presentes en el mapa, que son solo dos: el 145, y el 409, (el bus turístico ya no estaba en los datos)
+
+
+===Planes de etiquetado===
+
+El etiquetado sigue lo descrito en [[Buses]]
+
+===Etiquetas de cambios===
+
+El usuario que subiría el mapa sería "STM_Import".
+Etiquetas:
+
+{{Tag|import||yes}}
+
+{{Tag|comment||Importación de datos del Sistema de Transporte Metropolitano}}
+
+{{Tag|description||"https://wiki.openstreetmap.org/wiki/ES:Uruguay/Importación_del_STM"}}
+
+
+
+===Transformación de datos===
+
+==== Herramientas utilizadas ====
+* lua: lenguaje de programación usado
+* slaxml: para leer y escribir archivos XML
+* mapshaper: para convertir los archivos shapefile a archivos de texto
+* graphhopper: para hacer coincidir las trazas GPS al mapa
+* osmfilter: para simplificar la búsqueda de ways
+
+==== Paradas ====
+
+Del archivo paradas.xml se extraen las coordenadas y el nombre.
+El nombre (calle y esquina) está en mayúsculas, por lo que se pasa al estilo
+correcto: mayúsculas iniciales (por ser nombres propios) con excepciones
+(tildes, eñes, "y", "de", etc.) que se encuentran en la tabla mencionada.
+Luego se combinan al formato "''calle'' y ''esquina''".
+
+* Primero se arreglan unas paradas que contienen ambas etiquetas de referencia ({{Tag|source:pkey}} y {{Tag|ref}}): se elimina la etiqueta {{Tag|ref}}, que al revisar estas paradas en el mapa se determinó que la referencia real seguía en {{Tag|source:pkey}}.
+
+* Paradas que tienen la etiqueta {{Tag|ref}}: se asume que estas paradas están más actualizadas
+** Si no están en los datos, se ignoran
+** Si están en los datos, se eliminan las etiquetas innecesarias ({{Tag|mvdgis:cod_varian}}, {{Tag|mvdgis:desc_linea}}, {{Tag|mvdgis:ordinal}}, {{Tag|mvdgis:source||v_uptu}}, {{Tag|source||mvdgis}}) y se les asigna su nombre (si no tienen uno)
+
+* Paradas que tienen la etiqueta {{Tag|source:pkey}} (y todas las etiquetas innecesarias): se asume que estas paradas son las de la primera importación
+** Si no están en los datos, se eliminan
+** Si están en los datos: se eliminan las etiquetas innecesarias, se reemplaza la etiqueta de referencia, se le agrega el nombre, se le agrega una etiqueta de parada de bus (¿necesario?), y si sigue siendo la primera revisión, se actualiza la ubicación
+
+* Finalmente se agregan las paradas que están en los datos pero no en el mapa
+
+==== Líneas ====
+
+===== Para los nombres =====
+
+Se extrajo una lista preliminar de los nombres de las líneas del archivo de
+líneas y se corrigieron (abreviaciones, mayúsculas, etc.) a mano.
+
+Como estos nombres no están ordenados de la manera
+''origen'' a ''destino'', fueron procesados con Nominatim.
+Para esto se extrajeron las coordenadas inicial y final de cada línea
+(variante) y se combinaron con los nombres en comandos de búsqueda
+automatizada de Nominatim. Luego se ejecutaron las búsquedas.
+En los casos que el resultado de la búsqueda fue sencillo (si es correcto,
+hubo un resultado en el comando con el orden preliminar, si está invertido, el
+resultado está en el comando invertido) se actualizó el orden automáticamente.
+El resto de casos, se revisaron manualmente (acelerado con un script)
+
+===== Para el recorrido =====
+
+* Se extraen las coordenadas del archivo de líneas y se escriben en archivos .gpx que son alineados al mapa con mapshaper en un mapa ligeramente modificado (sin restricciones de acceso ni calles problemáticas para la alineación) y luego son leídos y guardados en un archivo.
+
+* Se reduce el mapa con osmfilter para simplificar el trabajo de recorrer el camino. En el script se leen datos del mapa y las líneas. Por cada variante:
+** Se busca el nodo más cercano a cada punto del GPX alineado. Para los puntos inicial y final (que no coinciden con nodos) se busca el nodo más cercano y más alineado a partir del segundo/penúltimo nodo.
+** Se recorren los nodos del inicio al final de los datos.
+*** Avanza de un nodo a otro mediante algún way del nodo actual, moviéndose en la dirección del nodo siguiente.
+*** Se elije (y guarda) el nodo y el way más alineado.
+*** Si hay un cambio de way (en medio de un way), se guarda donde ocurre.
+
+* Se dividen los ways adecuados. Para eso se recorren los ways a partir del inicio al final, pero cuando se encuentra el nodo a partir
+** Se crea un nuevo way con las mismas etiquetas y se le empiezan a cargar los nodos siguientes del way original, mientras se eliminan los siguientes al encontrado del original
+** Al terminar con un way, se actualizan las relaciones que lo involucran: se manejan las relaciones que están actualmente en el mapa:
+*** Restricciones: se busca cuál way (si el nuevo o el viejo) from/to coincide con el via.
+*** Para el resto de relaciones: se busca que coincida el way original con el anterior de la relación (o el nuevo con el siguiente); si coincide el original con el siguiente, está invertido; si no coincide nada, solamente se inserta en la relación.
+** Se recorren los nodos del inicio al final de los datos. Nuevamente, esta vez con el mapa correctamente partido.
+
+* Para agregar las rutas:
+** Se leen las paradas, y se obtienen sus las referencias, también se buscan estas paradas en el mapa para obtener sus identificadores.
+** Para leer los horarios:
+*** Se lee cada tiempo de salida y tiempo final (se leen todos y se guarda el último) por cada variante.
+*** Se combinan un periodo con el siguiente si uno empieza antes de que el otro termine, si no pasa una hora, o si hay un espacio menor a 4 veces la frecuencia (para reducir la cantidad de intervalos).
+** Se combinan los datos (si no está registrado en los horarios, o no tiene la línea GPS, se omite) para agregar las relaciones route, y route_master.
+
+
+===Resultados de la transformación de datos===
+
+Archivo OSM XML resultante: https://raw.githubusercontent.com/VicSanRoPe/STM_Import/master/MontevideoConBuses.osm.zip
+
+
+
+==Flujo de trabajo para combinar datos==
+
+=== Notas ===
+
+* Hay algunas paradas marcadas con {{Tag|highway|bus_stop}} pero no con {{Tag|public_transport|platform}}, la información que estas tengan se combinarían con las paradas coincidentes con referencia, a mano
+* Hay que arreglar algunas líneas manualmente (graphhopper se confunde a veces)
+
+
+===Flujo de trabajo===
+
+* Verificar errores que puedan haber: primero los corregibles mediante el mapa para alineación o los scripts; y segundo los arreglos manuales
+* Política de tamaño de los cambios: un changeset (también podrían ser 2: las paradas actualizadas, y las líneas)
+* Planes para revertir: [[Revert_scripts]], supongo
+
+
+
+[[Category:Import from Uruguay]]
