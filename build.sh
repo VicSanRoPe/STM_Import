@@ -20,14 +20,11 @@
 
 
 # Nota: MontevideoParaGPX.osm tiene todos las restricciones de acceso eliminadas con
-# ./osmfilter "Montevideo.osm" --drop-author --keep= --keep-relations="restriction" \
-#     --keep-ways="highway=" --drop-way-tags="access=" --drop-way-tags="motorcar=" \
-#     --drop-way-tags="motorcycle=" --drop-way-tags="vehicle=" \
-#     --drop-way-tags="motor_vehicle=" -o="MontevideoParaGPX.osm"
+# ./osmfilter "Montevideo.osm" --drop-author --keep= --keep-relations="restriction" --keep-ways="highway=" --drop-way-tags="access=" --drop-way-tags="motorcar=" --drop-way-tags="motorcycle=" --drop-way-tags="vehicle=" --drop-way-tags="motor_vehicle=" --drop-way-tags="bus=" -o="MontevideoParaGPX.osm"
 # Las calles interiores de Avenida de las Leyes, vías de servicio cercanas a
 # Avenida Wilson Ferreira Aldunate (justo afuera de Montevideo),
 # algunas calles privadas en Melilla: también eliminadas.
-# No hace falta actualizarlo...
+# No hace falta actualizarlo... o eso creía
 
 
 
