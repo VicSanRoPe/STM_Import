@@ -366,7 +366,7 @@ end
 
 printTable(w_id_varian, "way_ids_por_varian.lua")
 
-
+printTable(way_ids_por_varian, "way_ids_por_varian_completo.lua")
 
 
 local w_partir = {}

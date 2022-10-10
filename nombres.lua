@@ -53,7 +53,6 @@ local nombres = {
     [8269] = {"G8", "Terminal Colón", "Hipódromo las Piedras"},
     [8270] = {"G8", "Hipódromo las Piedras", "Terminal Colón"},
     [8271] = {"G8", "Terminal Colón", "Hipódromo las Piedras"},
-    [8274] = {"329", "Melilla", "Punta Carretas", "Colonia"},
     [8275] = {"329", "Punta Carretas", "Melilla"},
     [8276] = {"329", "Saint Bois", "Punta Carretas"},
     [8277] = {"329", "Punta Carretas", "Saint Bois"},

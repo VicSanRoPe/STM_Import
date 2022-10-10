@@ -64,7 +64,7 @@ for _, features in pairs(lineas) do if features.name == "features" then
 end end
 
 
-local comando = "cd lineasrutas & java -jar graphhopper-web-5.3.jar match --file config.yml --profile car --gps_accuracy 25 "
+local comando = "cd lineasrutas && java -jar graphhopper-web-5.3.jar match --file config.yml --profile car --gps_accuracy 25 "
 
 for varian, nombre in pairs(variantes) do
 	comando = comando .. '"' .. nombre .. '" '

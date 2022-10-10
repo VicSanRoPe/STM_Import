@@ -38,7 +38,7 @@ end
 rutas = rutas_compactado
 
 
---printTable(rutas, "rutas_cache.lua")
+printTable(rutas, "rutas_cache.lua")
 
 -----------------------------------------------------------------------------
 

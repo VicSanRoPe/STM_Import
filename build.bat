@@ -28,3 +28,4 @@ lua54.exe recorrer_camino.lua | tee salida6.txt
 
 lua54.exe agregar_buses.lua | tee salida7.txt
 
+osmfilter "MontevideoConBuses.osm" --drop-author --keep= --keep-ways="highway=" --keep-nodes="public_transport=platform" --keep-relations="route=bus" --keep-relations="restriction=" -o="MontevideoConBusesReducido.osm"

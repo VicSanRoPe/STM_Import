@@ -20,11 +20,11 @@
 
 
 # Nota: MontevideoParaGPX.osm tiene todos las restricciones de acceso eliminadas con
-# ./osmfilter "Montevideo.osm" --drop-author --keep= --keep-relations="restriction" --keep-ways="highway=" --drop-way-tags="access=" --drop-way-tags="motorcar=" --drop-way-tags="motorcycle=" --drop-way-tags="vehicle=" --drop-way-tags="motor_vehicle=" --drop-way-tags="bus=" -o="MontevideoParaGPX.osm"
+# ./osmfilter "Montevideo.osm" --drop-author --keep= --keep-relations="restriction" --keep-ways="highway=" --drop-way-tags="access=" --drop-way-tags="motorcar=" --drop-way-tags="motorcycle=" --drop-way-tags="vehicle=" --drop-way-tags="motor_vehicle=" --drop-way-tags="bus=" --drop-way-tags="goods=" -o="MontevideoParaGPX.osm"
 # Las calles interiores de Avenida de las Leyes, vías de servicio cercanas a
 # Avenida Wilson Ferreira Aldunate (justo afuera de Montevideo),
 # algunas calles privadas en Melilla: también eliminadas.
-# No hace falta actualizarlo... o eso creía
+# Actualizarlo junto con Montevideo.osm
 
 
 
@@ -50,8 +50,8 @@ lua verificar_paradas.lua
 #-------------------------------- RUTAS --------------------------------#
 
 
-# Depende de: lineas.xml nombres.lua MontevideoParaGPX.osm
-# Genera: .gpx .gpx.res.gpx lineas_procesadas.lua
+# Depende de: .gpx nombres.lua MontevideoParaGPX.osm
+# Genera: .gpx.res.gpx lineas_procesadas.lua
 lua extraer_gpx.lua
 
 # Preparar el mapa inicial para usar menos memoria
@@ -80,6 +80,7 @@ lua recorrer_camino.lua
 lua agregar_buses.lua
 
 
+./osmfilter "MontevideoConBuses.osm" --drop-author --keep= --keep-ways="highway=" --keep-nodes="public_transport=platform" --keep-relations="route=bus" --keep-relations="restriction=" -o="MontevideoConBusesReducido.osm"
 
 
 

@@ -346,6 +346,8 @@ function procesar_nombre(nombre)
 		return "Avenida Doctora María Luisa Saldún de Rodríguez" end
 	if nombre == "AV LIB BRIG GRAL LAVALLEJA" then
 		return "Avenida Libertador Brigadier General Lavalleja" end
+	if nombre == "JOSE A POSOLO" then
+		return "José A. Possolo" end
 
 	local res = ""
 	for palabra in nombre:gmatch("%S+") do
@@ -396,7 +398,7 @@ for _, parada in ipairs(paradas.kids[2].kids) do
 end
 
 
---printTable(coords, "coords_cache.lua")
+printTable(coords, "coords_cache.lua")
 
 
 local function buscar_con_tags(node, idtag, ...)
@@ -405,7 +407,6 @@ local function buscar_con_tags(node, idtag, ...)
 		local k, v = tag.attr[1].value, tag.attr[2].value
 		if k == idtag then id = v end
 		for _, val in ipairs(arg) do
-			print("arg", val)
 			if type(val) == "string" then
 				if k == val then cuenta = cuenta + 1 end
 			else -- Es un arreglo con k y v
@@ -496,7 +497,7 @@ for _, node in ipairs(mvd.kids[2].kids) do if node.name == "node" then
 	if id ~= nil then
 
 		if coords[id] == nil then -- Si no existe (verificación algo mala)
-			print("Borrada actualizada", id)
+			print("Ignorada actualizada", id)
 			borradas[#borradas+1] = id
 
 			--[[node.attr[#node.attr+1] =
@@ -593,14 +594,16 @@ for _, node in ipairs(mvd.kids[2].kids) do if node.name == "node" then
 			end
 
 			-- Agregar tag de parada de bus (la wiki dice obligatorio)
-			table.insert(node.kids, {type="element", name="tag", attr={
-				{type="attribute", name = "k", value = "highway"},
-				{type="attribute", name = "v", value = "bus_stop"}}
-			})
+-- 			table.insert(node.kids, {type="element", name="tag", attr={
+-- 				{type="attribute", name = "k", value = "highway"},
+-- 				{type="attribute", name = "v", value = "bus_stop"}}
+-- 			})
 
 			-- Actualizar ubicación si es la primera revisión
 			for _, attr in ipairs(node.attr) do
-				if attr.name == "version" and attr.value == "1" then
+				if attr.name == "version" and attr.value == "1" and
+						id ~= "1172" and id ~= "1182" and id ~= "1173" and
+						id ~= "1174" and id ~= "1179" and id ~= "1176" then
 					for _, attr in ipairs(node.attr) do
 						if attr.name == "lat" then
 							attr.value = coords[id].lat
@@ -642,10 +645,10 @@ for id, _ in pairs(coords) do
 				{type="attribute", name = "k", value = "public_transport"},
 				{type="attribute", name = "v", value = "platform"}
 			}},
-			{type="element", name="tag", attr = {
-				{type="attribute", name = "k", value = "highway"},
-				{type="attribute", name = "v", value = "bus_stop"}
-			}},
+-- 			{type="element", name="tag", attr = {
+-- 				{type="attribute", name = "k", value = "highway"},
+-- 				{type="attribute", name = "v", value = "bus_stop"}
+-- 			}},
 			{type="element", name="tag", attr = {
 				{type="attribute", name = "k", value = "ref"},
 				{type="attribute", name = "v", value = id}
