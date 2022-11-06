@@ -44,7 +44,7 @@ lua agregar_paradas.lua
 
 # Depende de: MontevideoConParadas.osm
 # Genera: al parecer, nada notable
-lua verificar_paradas.lua
+# lua verificar_paradas.lua
 
 
 #-------------------------------- RUTAS --------------------------------#

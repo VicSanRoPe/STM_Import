@@ -95,16 +95,17 @@ end end
 -- 	[7884] = por_var_sal[7884]  -- 121
 -- }
 
-
+--local achicar = {} -- Sin archivo (primero)
+local achicar = require("achicar")
 
 for var, datos in pairs(por_var_sal) do
-	trace("Variante: "..var)
-	local horas_total = {}
-	local freq_total = {}
+	print("Variante: "..var)
+	local horas_total, horas_no_compacto = {}, {}
+	local freq_total, freqs_parciales = {}, {}
 	local dur_total = {}
 	for tipo, dat in pairs(datos) do
 		local tipos = {"Mo-Fr", "Sa", "Su"}
-		trace("\tTipo de día: "..tipos[tipo])
+		print("\tTipo de día: "..tipos[tipo])
 		local horas = {}
 
 		local arr_salidas = {} -- Para ordenar según salida
@@ -119,11 +120,88 @@ for var, datos in pairs(por_var_sal) do
 			dur_total[#dur_total+1] = tomin(dat[salida]) - tomin(salida)
 		end
 
-		trace("\t\tCantidad de idas: "..#horas)
+		print("\t\tCantidad de idas: "..#horas)
+
+		horas_no_compacto[tipo] = {}
+		for i, t in pairs(horas) do
+			table.insert(horas_no_compacto[tipo], {sal=t.sal, des=t.des})
+		end
+
+
+		local freq_dia, freq_ini, freq_fin = nil, nil, nil
+		local inicio_i, final_i = 0, 0
+		if #horas >= 2 then -- Periodo principal: 0800 a 2100 (arbitrario)
+			inicio_i, final_i = 0, 0
+			for i = 1, #horas do
+				if inicio_i == 0 and horas[i].sal > 800 then inicio_i = i end
+				if horas[i].sal < 2100 then final_i = i end
+			end
+			print("\t\tInicio: "..inicio_i.."; Final:"..final_i)
+
+			if inicio_i > 1 then freq_ini = (tomin(horas[inicio_i].sal) - tomin(horas[1].sal)) / (inicio_i - 1) end
+			if final_i < #horas and final_i > 0 then freq_fin = (tomin(horas[#horas].sal) - tomin(horas[final_i].sal)) / (#horas - final_i) end
+
+			if inicio_i == 0 then inicio_i = 1 end
+			if final_i == 0 then final_i = #horas end
+			freq_dia = (tomin(horas[final_i].sal)-tomin(horas[inicio_i].sal))
+					 / (final_i - inicio_i)
+
+			if freq_dia ~= freq_dia then freq_dia = nil end
+			if freq_ini ~= freq_ini then freq_ini = nil end
+			if freq_fin ~= freq_fin then freq_fin = nil end
+
+			if freq_ini and freq_fin and freq_dia then
+				local freq_otro = (freq_ini + freq_fin) / 2
+				if freq_otro > 2 * freq_dia then
+					freqs_parciales[tipo] =
+							{principal = freq_dia, otro = freq_otro,
+							inicio_i = inicio_i, final_i = final_i}
+					print("\t\tFreq principal: "..freq_dia.."; Freq otras: "..freq_otro)
+				else
+					freqs_parciales[tipo] =
+							{unico = (freq_dia + freq_otro) / 2,
+							inicio_i = inicio_i, final_i = final_i}
+					print("\t\tFreq unica: "..(freq_dia+freq_otro)/2)
+				end
+			elseif freq_ini and freq_dia then
+				if freq_ini > 2 * freq_dia then
+					freqs_parciales[tipo] =
+							{principal = freq_dia, ini = freq_ini,
+							inicio_i = inicio_i, final_i = final_i}
+					print("\t\tFreq principal: "..freq_dia.."; Freq inicial: "..freq_ini)
+				else
+					freqs_parciales[tipo] =
+							{unico = (freq_dia + freq_ini) / 2,
+							inicio_i = inicio_i, final_i = final_i}
+					print("\t\tFreq unica: "..(freq_dia+freq_ini)/2)
+				end
+			elseif freq_fin and freq_dia then
+				if freq_fin > 2 * freq_dia then
+					freqs_parciales[tipo] =
+							{principal = freq_dia, fin = freq_fin,
+							inicio_i = inicio_i, final_i = final_i}
+					print("\t\tFreq principal: "..freq_dia.."; Freq final: "..freq_fin)
+				else
+					freqs_parciales[tipo] =
+							{unico = (freq_dia + freq_fin) / 2,
+							inicio_i = inicio_i, final_i = final_i}
+					print("\t\tFreq unica: "..(freq_dia+freq_fin)/2)
+				end
+			end
+
+		end
+
+
+
 
 		-- Tiempo final menos tiempo inicial sobre cantidad de tiempos
 		local freq = (tomin(horas[#horas].sal)-tomin(horas[1].sal))/(#horas-1)
 		if freq == freq then freq_total[#freq_total+1] = freq end
+
+
+
+
+
 		local maximo, max_i, minimo, min_i = 0, 1, 9999, 1
 		for i = 1, #horas - 1 do
 			local diff = tomin(horas[i+1].sal) - tomin(horas[i].sal)
@@ -131,22 +209,32 @@ for var, datos in pairs(por_var_sal) do
 			if diff < minimo then minimo = diff min_i = i end
 		end
 
-		trace("\t\tFrecuencia promedio: "..freq)
-		trace("\t\tMínimo: "..minimo.." en "..horas[min_i].sal..
+		print("\t\tFrecuencia promedio: "..freq)
+		print("\t\tMínimo: "..minimo.." en "..horas[min_i].sal..
 				"\tMáxmimo: "..maximo.." en "..horas[max_i].sal)
 
-		local tol = 4 * freq -- 4 (valor arbitrario) por el intervalo promedio
 
-		-- Combinar horass si: Uno sale antes que el anterior llegue
-		for i = 2, #horas do if horas[i].sal <= horas[i-1].des or (
-				-- De lo contrario: no están demasiado lejos (tol o 1 hora)
-				(tomin(horas[i].sal) - tomin(horas[i-1].des)) < tol and
-				(tomin(horas[i].sal) - tomin(horas[i-1].des)) < 60) then
-			horas[i].sal = horas[i-1].sal -- La salida es el anterior
-			horas[i-1] = nil -- Borrar el anterior (la llegada es el actual)
-		end end
 
-		horas_total[tipo] = horas
+		--local tol = 3 * (freq_dia or freq) -- 3 (arbitrario) por el intervalo promedio
+
+		-- Combinar horas si: Uno sale antes que el anterior llegue
+		for i = 2, #horas do
+			if horas[i].sal <= horas[i-1].des or
+					(achicar[var] and
+					horas[i].sal - horas[i-1].des < achicar[var]) then
+				horas[i].sal = horas[i-1].sal -- La salida es el anterior
+				horas[i-1] = nil -- Borrar el anterior (llegada es el actual)
+			end
+		end
+
+		local compacto, max = {}, 0
+		for i, _ in pairs(horas) do if i > max then max = i end end
+		for i = 1, max do
+			if horas[i] then table.insert(compacto, horas[i]) end
+		end
+
+		horas_total[tipo] = compacto
+
 	end
 
 
@@ -169,6 +257,10 @@ for var, datos in pairs(por_var_sal) do
 
 	texto = texto:gsub("^; ", "")
 	horarios[var] = {horas=texto}
+	if #texto > 250 then
+		achicar[var] = achicar[var] or 0
+		achicar[var] = achicar[var] + 10
+	end
 
 	local function formatear_tiempos(arr)
 		local val = 0 -- La frecuencia sería un valor medio
@@ -181,9 +273,92 @@ for var, datos in pairs(por_var_sal) do
 		end
 	end
 
-	print(freq_total)
+
+
+
+
+
+
+
+	local f = {}
+	for tipo, d in pairs(freqs_parciales) do
+		f[#f+1] = d
+		f[#f].tipo = tipo
+	end
+
+
+	texto = ""
+	for _, d in pairs(f) do
+		printTable(d) print()
+
+		if d.unico then
+			texto = texto .. tostring(math.ceil(d.unico)) .. "@("
+
+			if d.tipo == 1 then     texto = texto .. "Mo-Fr "
+			elseif d.tipo == 2 then texto = texto .. "Sa "
+			elseif d.tipo == 3 then texto = texto .. "Su " end
+
+			local str = string.format("%02d:%02d-%02d:%02d",
+					horas_total[d.tipo][1].sal//100,
+					horas_total[d.tipo][1].sal%100,
+					horas_total[d.tipo][#horas_total[d.tipo]].des//100,
+					horas_total[d.tipo][#horas_total[d.tipo]].des%100)
+			texto = texto .. str .. "); "
+		else
+			texto = texto .. tostring(math.ceil(d.principal)) .. "@("
+
+			if d.tipo == 1 then     texto = texto .. "Mo-Fr "
+			elseif d.tipo == 2 then texto = texto .. "Sa "
+			elseif d.tipo == 3 then texto = texto .. "Su " end
+
+			local str = string.format("%02d:%02d-%02d:%02d",
+					horas_no_compacto[d.tipo][d.inicio_i].sal//100,
+					horas_no_compacto[d.tipo][d.inicio_i].sal%100,
+					horas_no_compacto[d.tipo][d.final_i].sal//100,
+					horas_no_compacto[d.tipo][d.final_i].sal%100)
+			texto = texto .. str .. "); "
+
+
+			if d.ini or d.otro then
+				texto = texto .. tostring(math.ceil(d.ini or d.otro)) .. "@("
+
+				if d.tipo == 1 then     texto = texto .. "Mo-Fr "
+				elseif d.tipo == 2 then texto = texto .. "Sa "
+				elseif d.tipo == 3 then texto = texto .. "Su " end
+
+				local str = string.format("%02d:%02d-%02d:%02d",
+						horas_total[d.tipo][1].sal//100,
+						horas_total[d.tipo][1].sal%100,
+						horas_no_compacto[d.tipo][d.inicio_i].sal//100,
+						horas_no_compacto[d.tipo][d.inicio_i].sal%100)
+				texto = texto .. str .. "); "
+			end
+
+			if d.fin or d.otro then
+				texto = texto .. tostring(math.ceil(d.fin or d.otro)) .. "@("
+
+				if d.tipo == 1 then     texto = texto .. "Mo-Fr "
+				elseif d.tipo == 2 then texto = texto .. "Sa "
+				elseif d.tipo == 3 then texto = texto .. "Su " end
+
+				local str = string.format("%02d:%02d-%02d:%02d",
+						horas_no_compacto[d.tipo][d.final_i].sal//100,
+						horas_no_compacto[d.tipo][d.final_i].sal%100,
+						horas_total[d.tipo][#horas_total[d.tipo]].des//100,
+						horas_total[d.tipo][#horas_total[d.tipo]].des%100)
+				texto = texto .. str .. "); "
+			end
+		end
+
+	end
+
+	texto = texto:gsub("; $", "")
+	print("TEXTO: "..texto)
+
+
+	if #texto > 10 then horarios[var].freqsss = texto end
+
 	horarios[var].freq = formatear_tiempos(freq_total)
-	print(dur_total)
 	horarios[var].dur  = formatear_tiempos(dur_total)
 end
 
@@ -191,7 +366,9 @@ end
 local prob_actualizado = {}
 for _, d in pairs(horarios_datos) do prob_actualizado[d[1]] = true end
 
-
+printTable(horarios, "horarios_nuevos.lua")
+printTable(achicar, "achicar.lua")
+os.exit()
 -----------------------------------------------------------------------------
 
 
@@ -316,6 +493,15 @@ for varian, datos in pairs(rutas) do if nombres[varian] ~= nil then
 		trace('\tIntervalo: "'..rel.kids[#rel.kids].attr[2].value..'"')
 	else
 		print("\tNOTA: Variante "..varian.." sin frecuencia")
+	end
+	if horarios[varian] ~= nil and horarios[varian].freqsss ~= nil then
+		table.insert(rel.kids, {type="element", name="tag", attr = {
+			{type="attribute", name = "k", value = "interval:conditional"},
+			{type="attribute", name = "v", value = horarios[varian].freqsss}
+		}})
+		trace('\tIntervalo: "'..rel.kids[#rel.kids].attr[2].value..'"')
+	else
+		print("\tNOTA: Variante "..varian.." sin frecuenciassss")
 	end
 	if horarios[varian] ~= nil and horarios[varian].dur ~= nil then
 		table.insert(rel.kids, {type="element", name="tag", attr = {

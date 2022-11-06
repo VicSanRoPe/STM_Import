@@ -3,6 +3,32 @@ local readXML, writeXML, printTable, fileExists, trace = table.unpack(utils)
 
 
 
+
+
+if false then
+	local a_actualizar = {}
+	local por_mapa  = require("paradas_mal_mapa")
+	local por_datos = require("paradas_mal_datos")
+
+	for _, p_ref in ipairs(por_mapa) do -- Por cada mala en el mapa
+		local esta = false
+		for _, p_ref_dat in ipairs(por_datos) do -- Por cada mala en los datos
+			if p_ref == p_ref_dat then esta = true break end -- Mal en datos
+		end
+		if esta == false then -- Mal en el mapa pero no en los datos
+			table.insert(a_actualizar, p_ref)
+		end
+	end
+
+	printTable(a_actualizar, "paradas_a_actualizar.lua")
+
+	os.exit()
+end
+
+
+
+
+
 local rutas_completas = require("way_ids_por_varian_completo")
 -- [varian] = {[1] = {id=way_id, fwd=booleano, ang=radianes}}
 local ways, nodes = require("ways_cache"), require("nodes_cache")
@@ -88,22 +114,22 @@ end end
 
 
 -- Verificar restricciones de giro
--- for varian, arr in pairs(rutas) do for i = 1, #arr-1 do
--- 	local way_curr_id, way_next_id = arr[i].id, arr[i+1].id
--- 	if way_curr_id ~= way_next_id then for _, info in ipairs(restricciones) do
--- 		if info.role["from"].id == way_curr_id then
--- 			if (info.tags["restriction"] == "no_straight_on" or
--- 					info.tags["restriction"] == "no_left_turn" or
--- 					info.tags["restriction"] == "no_right_turn" or
--- 					info.tags["restriction"] == "no_u_turn") and
--- 					info.role["to"] and info.role["to"].id == way_next_id then
--- 				print("Variante "..varian.." Giro incorrecto de id:"
--- 						..way_curr_id.." a id:"..way_next_id)
--- 				break
--- 			end
--- 		end
--- 	end end
--- end end
+for varian, arr in pairs(rutas) do for i = 1, #arr-1 do
+	local way_curr_id, way_next_id = arr[i].id, arr[i+1].id
+	if way_curr_id ~= way_next_id then for _, info in ipairs(restricciones) do
+		if info.role["from"].id == way_curr_id then
+			if (info.tags["restriction"] == "no_straight_on" or
+					info.tags["restriction"] == "no_left_turn" or
+					info.tags["restriction"] == "no_right_turn" or
+					info.tags["restriction"] == "no_u_turn") and
+					info.role["to"] and info.role["to"].id == way_next_id then
+				print("Variante "..varian.." Giro incorrecto de id:"
+						..way_curr_id.." a id:"..way_next_id)
+				break
+			end
+		end
+	end end
+end end
 
 function to_obj(nodo)
 	if type(nodo) == "number" then return nodes[nodo]
@@ -118,11 +144,25 @@ function distancia(origen, destino) -- Metros
 	return --[[100000 *]] math.sqrt(
 			(dest.lat - orig.lat)^2 + (dest.lon - orig.lon)^2)
 end
+
+
+-- Ejecutar una vez con true otra vez con false
+local usar_datos_del_mapa = true
+
+
 function angulo_p(orig, parada_ref) -- Radianes
-	return angulo(to_obj(orig), coords_mapa[parada_ref])
+	if usar_datos_del_mapa then
+		return angulo(to_obj(orig), coords_mapa[parada_ref])
+	else
+		return angulo(to_obj(orig), coords[parada_ref])
+	end
 end
 function distancia_p(orig, parada_ref) -- Metros
-	return distancia(to_obj(orig), coords_mapa[parada_ref])
+	if usar_datos_del_mapa then
+		return distancia(to_obj(orig), coords_mapa[parada_ref])
+	else
+		return distancia(to_obj(orig), coords[parada_ref])
+	end
 end
 
 
@@ -171,37 +211,54 @@ function w_arr_to_n_arr(w_arr)
 	return arr
 end
 
-
+local paradas_mal, paradas_bien = {}, {}
 
 -- Convertir a arreglo de nodos falsos y reales
 for var, w_arr in pairs(rutas) do
 	local n_arr = w_arr_to_n_arr(w_arr)
-	for _, p_ref in ipairs(paradas[var]) do
+	for _, p_ref in ipairs(paradas[var]) do if paradas_bien[p_ref] == nil then
+
+		local ang_diff = 0
 		local min_dist, min_dist_i = 999999, 1
-		for i = 1, #n_arr-1 do -- Buscar el nodo (real o falso) más cercano
-			local dist = distancia_p(n_arr[i], p_ref)
-			if dist < min_dist then min_dist = dist min_dist_i = i end
+
+		local function encontrar_angulo()
+			min_dist_i = 1
+			for i = 1, #n_arr-1 do -- Buscar el nodo (real o no) más cercano
+				local dist = distancia_p(n_arr[i], p_ref)
+				if dist < min_dist then min_dist = dist min_dist_i = i end
+			end
+
+-- 			print(#n_arr, min_dist_i)
+
+			local n_curr, n_next = n_arr[min_dist_i], n_arr[min_dist_i+1]
+
+-- 			printTable(n_curr) print()
+-- 			printTable(n_next) print()
+
+			local ang_siguiente = angulo(n_curr, n_next)
+			local ang_a_parada = angulo_p(n_curr, p_ref)
+
+			ang_diff = ang_a_parada - ang_siguiente -- Diferencia
+			-- Ajustar ángulo
+			if ang_diff > math.pi then ang_diff = ang_diff - 2 * math.pi
+			elseif ang_diff < -math.pi then ang_diff = ang_diff+2*math.pi end
 		end
 
-		local n_curr, n_next = n_arr[min_dist_i], n_arr[min_dist_i+1]
-
-		local ang_siguiente = angulo(n_curr, n_next)
-		local ang_a_parada = angulo_p(n_curr, p_ref)
-
-		local ang_diff = ang_a_parada - ang_siguiente -- Diferencia
-		-- Ajustar ángulo
-		if ang_diff > math.pi then ang_diff = ang_diff - 2 * math.pi
-		elseif ang_diff < -math.pi then ang_diff = ang_diff + 2 * math.pi end
-
-		if ang_diff > 0 then -- Está a la izquierda
-			print("Variante "..var.." Parada "..p_ref)
--- 			printTable(n_curr) printTable(n_next)
--- 			print("Pos: lat:"..n_curr.lat.." lon:"..n_curr.lon)
--- 			print(math.deg(ang_a_parada), math.deg(ang_siguiente))
--- 			print(math.deg(ang_diff))
+		local mal = 0
+		for intentos = 1, 4 do
+			encontrar_angulo()
+			if ang_diff > 0 then -- Está a la izquierda
+				print("Variante "..var.." Parada "..p_ref.." mal")
+				table.remove(n_arr, min_dist_i)
+				mal = mal + 1
+			else
+				print("Variante "..var.." Parada "..p_ref.. " bien")
+				paradas_bien[p_ref] = true
+				break;
+			end
 		end
-
-	end
+		if mal == 4 then table.insert(paradas_mal, p_ref) end
+	end end
 end
 
 
@@ -209,46 +266,11 @@ end
 
 
 
-
-
--- function to_n_id(obj) return ways[obj.id][obj.i] end
--- for var, w_arr in pairs(rutas) do for _, p_ref in ipairs(paradas[var]) do
--- 	-- Buscar el nodo más cercano a la parada
--- 	local min_n_dist, min_n_i = 999999, 1
--- 	for i = 1, #w_arr - 1 do
--- 		local dist = distancia_p(to_n_id(w_arr[i]), p_ref)
--- 		if dist < min_n_dist then min_n_dist = dist min_n_i = i end
--- 	end
---
--- 	local n_curr, n_next = to_n_id(w_arr[min_n_i]), to_n_id(w_arr[min_n_i+1])
---
--- 	local ang_siguiente = angulo(n_curr, n_next)
--- 	local ang_a_parada = angulo_p(n_curr, p_ref)
---
--- 	local ang_diff = ang_a_parada - ang_siguiente -- Diferencia
--- 	-- Ajustar ángulo
--- 	if ang_diff > math.pi then ang_diff = ang_diff - 2 * math.pi
--- 	elseif ang_diff < -math.pi then ang_diff = ang_diff + 2 * math.pi end
---
--- 	if ang_diff > 0 then -- Negativo sería a la derecha
--- 		print("Variante "..var.." Nodos "..n_curr.." "..n_next.." Parada "..p_ref)
--- 		print(math.deg(ang_a_parada), math.deg(ang_siguiente), math.deg(ang_diff))
--- 	end
---
--- end end
-
-
-
-
-
-
-
-
-
-
-
-
-
+if usar_datos_del_mapa then
+	printTable(paradas_mal, "paradas_mal_mapa.lua")
+else
+	printTable(paradas_mal, "paradas_mal_datos.lua")
+end
 
 
 

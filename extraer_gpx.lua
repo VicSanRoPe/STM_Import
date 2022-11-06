@@ -81,7 +81,9 @@ os.execute(comando)
 local lineas_procesadas = {}
 
 for varian, nombre in pairs(variantes) do
-	local puntos = readXML("./lineasrutas/" .. nombre .. ".res.gpx")
+	local nombre = "./lineasrutas/" .. nombre .. ".res.gpx"
+	if fileExists(nombre) then
+	local puntos = readXML(nombre)
 	puntos = puntos.kids[2].kids[2].kids[2].kids
 
 	lineas_procesadas[varian] = {}
@@ -93,6 +95,7 @@ for varian, nombre in pairs(variantes) do
 			if attr.name == "lon" then lon = tonumber(attr.value) end
 		end
 		table.insert(lineas_procesadas[varian], {lat=lat, lon=lon})
+	end
 	end
 end
 

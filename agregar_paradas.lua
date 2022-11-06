@@ -599,11 +599,18 @@ for _, node in ipairs(mvd.kids[2].kids) do if node.name == "node" then
 -- 				{type="attribute", name = "v", value = "bus_stop"}}
 -- 			})
 
-			-- Actualizar ubicación si es la primera revisión
+			local no_cambiar = {"1172","1182","1173","1174","1179","1176"}
+			local cambiar = {"4078", "1105", "2959", "5493", "5550", "5620", "5633", "5302"}
+			local function contiene(arr, val)
+				for i, v in ipairs(arr) do
+					if v == val then return true end end
+				return false
+			end
 			for _, attr in ipairs(node.attr) do
-				if attr.name == "version" and attr.value == "1" and
-						id ~= "1172" and id ~= "1182" and id ~= "1173" and
-						id ~= "1174" and id ~= "1179" and id ~= "1176" then
+			-- Actualizar ubicación si es la primera revisión, y excepciones
+				if (attr.name == "version" and attr.value == "1" and
+						not contiene(no_cambiar, id)) or
+						contiene(cambiar, id) then
 					for _, attr in ipairs(node.attr) do
 						if attr.name == "lat" then
 							attr.value = coords[id].lat
